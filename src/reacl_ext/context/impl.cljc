@@ -8,9 +8,15 @@
    (def ^{:dynamic true :private true} *context*))
 
 #?(:cljs
-   (defn ^:private empty-context [component]
-     {:component component
-      :state nil
+   (defn ^:private initial-context [component app-state local-state]
+     {:component component  ;; "read-only"
+      :app-state app-state  ;; "read-only"
+      :local-state local-state  ;; "read-only"
+      :state (if (not= state/not-available app-state)
+               (state/AppState component app-state lens/id)
+               (if (not= state/not-available local-state)
+                 (state/LocalState component local-state lens/id)
+                 nil))
       :reaction nil
       :reduce-action nil}))
 
@@ -22,7 +28,10 @@
 #?(:cljs
    (defn update-context [f thunk]
      (assert *context*)
-     (binding [*context* (f *context)]
+     (binding [*context* (let [context (f *context)]
+                           ;; TODO: check some pre/post conditions here.
+                           ;; remove state/reaction when the other is set.
+                           context)]
        (thunk))))
 
 #?(:cljs
@@ -49,28 +58,15 @@
      (reacl/opt :reduce-action (:reduce-action *context*))))
 
 
-(defn- wrap-initial-context [render this]
-  `(binding [*context* (empty-context ~this)]
+(defn- wrap-initial-context [render this app-state? local-state?]
+  `(binding [*context* (initial-context ~this
+                                        ~(if app-state? app-state? 'reacl-ext.context.state/not-available)
+                                        ~(if local-state? local-state? 'reacl-ext.context.state/not-available))]
      ~render))
-
-(defn- wrap-context-app-state [form this app-state]
-  `(let [~app-state (reacl-ext.context.state/->AppState ~this ~app-state active.clojure.lens/id)]
-     ~form))
-
-(defn- wrap-context-local-state [form this local-state]
-  `(let [~local-state (reacl-ext.context.state/->LocalState ~this ~local-state active.clojure.lens/id)]
-     ~form))
-
-(defn- wrap-context-states [form this app-state? local-state?]
-  ;; rebinds the app-state and local-state (may both be nil), to state objects within form (the render form)
-  (cond-> form
-    app-state? (wrap-context-app-state this app-state?)
-    local-state? (wrap-context-local-state this local-state?)))
 
 (defn- wrap-context [render this app-state? local-state?]
   (-> render
-      (wrap-context-states this app-state? local-state?)
-      (wrap-initial-context this)))
+      (wrap-initial-context this app-state? local-state?)))
 
 (defn- get-local-state [specs-map]
   (first (get specs-map 'local-state)))
@@ -106,22 +102,30 @@
   "
   ;; Note [... :as all] is apparently only possible in lets, not in fn args :-( (Bug in clojure?)
   [params]
-  (let [symbols (map (fn [x]
-                       (cond
-                         (symbol? x) x
-                         :else `arg#))
-                     params)
+  (let [symbols (mapv (fn [x]
+                        (cond
+                          (symbol? x) x
+                          :else `arg#))
+                      params)
         varg? (contains? (set symbols) '&)]
     (if varg?
       [symbols `(apply list ~@(filter #(not= % '&) symbols))]
       [symbols `[~@symbols]])))
 
+(defn instantiator-fn [has-state? params class]
+  (let [[mparams args] (undestructuring params)]
+    `(-> (fn ~mparams
+           ~(if has-state?
+              `(instantiate-with-state ~class ~args)
+              `(instantiate-without-state ~class ~args)))
+         (with-meta {::reacl-class ~class}))))
+
 (defn instantiator-defn [name docstring? has-state? params class]
-  (let [n (if docstring?
-            `(vary-meta ~name assoc :doc ~docstring?)
-            name)
-        [mparams args] (undestructuring params)] ;; TODO: keep argslist metadata
-    `(defn ~n ~mparams
-       ~(if has-state?
-          `(instantiate-with-state ~class ~args)
-          `(instantiate-without-state ~class ~args)))))
+  (let [n `(vary-meta ~name assoc
+                      ~@(when docstring? [:doc docstring?])
+                      :arglists '(~params))]
+    `(def ~n
+       ~(instantiator-fn has-state? params class))))
+
+(defn reacl-class [instantiator-fn]
+  (::reacl-class (meta instantiator-fn)))

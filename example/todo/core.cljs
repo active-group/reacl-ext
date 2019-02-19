@@ -56,12 +56,11 @@
 
 (ext/defclass to-do-item this todo []
   render
-  (dom/div (ctx/bind todo (ctx/focus :done?
-                                     (checkbox)))
+  (dom/div (ctx/focus :done? (checkbox))
            (ctx/map-action (button "Zap")
                            ->Delete)
            
-           (:text @todo)))
+           (:text todo)))
 
 (defn todo-id
   "A lens over the todo item with id in a list of todos (must exist)."
@@ -76,30 +75,23 @@
               todo))
           list))))
 
-(comment
-  ;; better alternative?
-  (-> (to-do-item)
-      (dom/keyed (str (:id todo)))
-      (ctx/focus (lens/>> :todos (todo-id (:id todo))))
-      (ctx/handle-action ->Delete)))
-
 (ext/defclass to-do-app this app-state []
   local-state [next-text ""]
 
   render
   (dom/div
    (dom/h3 "TODO")
-   (ctx/bind app-state
-             (dom/div 
-              (map (fn [todo]
-                     (ctx/handle-action (ctx/focus (lens/>> :todos (todo-id (:id todo)))
-                                                   (dom/keyed (str (:id todo))
-                                                              (to-do-item)))
-                                        ->Delete))
-                   (:todos @app-state))))
+   (dom/div 
+    (map (fn [todo]
+           (ctx/handle-action (ctx/focus (lens/>> :todos (todo-id (:id todo)))
+                                         (dom/keyed (str (:id todo))
+                                                    (to-do-item)))
+                              ->Delete))
+         (:todos app-state)))
+
    (dom/form
-    (ctx/bind next-text (text-input))
-    (ctx/handle-action (button (str "Add #" (:next-id @app-state)))
+    (ctx/local-state (text-input))
+    (ctx/handle-action (button (str "Add #" (:next-id app-state)))
                        ->Submit)))
 
   handle-message
@@ -125,7 +117,8 @@
                                      (:todos app-state)))))))
   )
 
-(ctx/render-component
+
+(ext/render-component
  (.getElementById js/document "content")
  to-do-app
  (TodosApp. 0 []))

@@ -23,20 +23,47 @@
         (update context field f))
       thunk)))
 
-#_(:cljs TODO
-   (defn render-component [element clazz & rst]
-     (apply reacl/render-component element
-            (reacl-class clazz)
-            rst)))
+#?(:cljs
+   (defn bind-state* [state-f thunk]
+     (impl/update-context
+      (fn [context]
+        (assoc :state context (state-f context)))
+      thunk)))
 
 #?(:cljs
-   (defn bind* [state thunk]
-     (init-context-field :state state
-                         thunk)))
+   (defn app-state*
+     ([thunk]
+      (app-state* lens/id thunk))
+     ([lens thunk]
+      (bind-state* (fn [context]
+                     (let [v (:app-state context)]
+                       (when (= state/not-available v)
+                         (throw (ex-info "Cannot embed into app-state, class does not have one.")))
+                       (state/->AppState (:component context) v active.clojure.lens/id)))
+                   thunk))))
 
 #?(:clj
-   (defmacro bind [state form]
-     `(bind* ~state (fn [] ~form))))
+   (defmacro app-state
+     ([form] `(app-state* (fn [] ~form)))
+     ([lens form] `(app-state* ~lens (fn [] ~form)))))
+
+#?(:cljs
+   (defn local-state*
+     ([thunk]
+      (local-state* lens/id thunk))
+     ([lens thunk]
+      (bind-state* (fn [context]
+                     (let [v (:local-state context)]
+                       (when (= state/not-available v)
+                         (throw (ex-info "Cannot embed into local-state, class does not have one.")))
+                       (state/->LocalState (:component context) v active.clojure.lens/id)))))))
+
+#?(:clj
+   (defmacro local-state
+     ([form] `(local-state* (fn [] ~form)))
+     ([lens form] `(local-state* ~lens (fn [] ~form)))))
+
+;; TODO: mixed-state
 
 #?(:cljs
    (defn focus* [lens thunk]
@@ -95,14 +122,14 @@
                       ~f ~args)))
 
 #?(:cljs
-   (defn bind-reaction* [reaction app-state thunk]
+   (defn reaction* [reaction app-state thunk]
      (init-context-field :reaction [reaction app-state]
                          thunk)))
 
 #?(:clj
-   (defmacro bind-reaction [reaction app-state form]
-     `(bind-reaction* ~reaction ~app-state
-                      (fn [] ~form))))
+   (defmacro reaction [reaction app-state form]
+     `(reaction* ~reaction ~app-state
+                 (fn [] ~form))))
 
 #_(:clj
    ;; TODO?
@@ -111,8 +138,8 @@
 
 #?(:cljs
    (defn fixed* [value thunk]
-     (bind* (state/->FixedState value lens/id)
-            thunk)))
+     (bind-state* (constantly (state/->FixedState value lens/id))
+                  thunk)))
 
 #?(:clj
    (defmacro fixed [value form]

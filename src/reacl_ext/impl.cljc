@@ -51,3 +51,5 @@
     `(let [~clazz ~class]
        ~(ctx-impl/instantiator-defn name docstring? has-app-state? params clazz))))
 
+(defn reacl-class [ext-class]
+  (ctx-impl/reacl-class ext-class))

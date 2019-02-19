@@ -8,19 +8,21 @@
     (impl/instantiator-defn 'myclass "docs" true '[a b]
                             ..class..)
     =>
-    `(defn
-       (vary-meta ~'myclass assoc :doc "docs")
-       [~'a ~'b]
-       (impl/instantiate-with-state ~..class.. [~'a ~'b])))
+    `(def
+       (vary-meta ~'myclass assoc :doc "docs" :arglists '~'([a b]))
+       (-> (fn [~'a ~'b]
+             (impl/instantiate-with-state ~..class.. [~'a ~'b]))
+           (with-meta {:reacl-ext.context.impl/reacl-class ..class..}))))
 
   (fact "works with var-args"
     (impl/instantiator-defn 'myclass nil false '[a b & c]
                             ..class..)
     =>
-    `(defn
-       ~'myclass
-       [~'a ~'b & ~'c]
-       (impl/instantiate-without-state ~..class.. (apply list ~'a ~'b ~'c))))
+    `(def
+       (vary-meta ~'myclass assoc :arglists '~'([a b & c]))
+       (-> (fn [~'a ~'b & ~'c]
+             (impl/instantiate-without-state ~..class.. (apply list ~'a ~'b ~'c)))
+           (with-meta {:reacl-ext.context.impl/reacl-class ..class..}))))
   )
 
 (facts "about apply-context"
@@ -30,7 +32,7 @@
                         'myclass 'that nil)
     =>
     `{~'handle-message ~..handler..
-      ~'render (binding [impl/*context* (impl/empty-context ~'that)]
+      ~'render (binding [impl/*context* (impl/initial-context ~'that reacl-ext.context.state/not-available reacl-ext.context.state/not-available)]
                  ~..dom..)})
 
   (fact "works with an app-state"
@@ -39,9 +41,8 @@
                         'myclass 'that ..app-state..)
     =>
     `{~'handle-message (reacl-ext.context.state/wrap-handle-state-messages ~..handler.. ~..app-state.. reacl-ext.context.state/not-available)
-      ~'render (binding [impl/*context* (impl/empty-context ~'that)]
-                 (let [~..app-state.. (reacl-ext.context.state/->AppState ~'that ~..app-state.. active.clojure.lens/id)]
-                   ~..dom..))})
+      ~'render (binding [impl/*context* (impl/initial-context ~'that ~..app-state.. reacl-ext.context.state/not-available)]
+                 ~..dom..)})
 
   (fact "works with a local-state"
     (impl/apply-context {'render ..dom..
@@ -51,9 +52,8 @@
     =>
     `{~'handle-message (reacl-ext.context.state/wrap-handle-state-messages ~..handler.. reacl-ext.context.state/not-available ~'st)
       ~'local-state ~['st ..state..]
-      ~'render (binding [impl/*context* (impl/empty-context ~'that)]
-                 (let [~'st (reacl-ext.context.state/->LocalState ~'that ~'st active.clojure.lens/id)]
-                   ~..dom..))})
+      ~'render (binding [impl/*context* (impl/initial-context ~'that reacl-ext.context.state/not-available ~'st)]
+                 ~..dom..)})
 
   (fact "works with both app and local state"
     (impl/apply-context {'render ..dom..
@@ -63,10 +63,8 @@
     =>
     `{~'handle-message (reacl-ext.context.state/wrap-handle-state-messages ~..handler.. ~..app-state.. ~'st)
       ~'local-state ~['st ..state..]
-      ~'render (binding [impl/*context* (impl/empty-context ~'that)]
-                 (let [~'st (reacl-ext.context.state/->LocalState ~'that ~'st active.clojure.lens/id)]
-                   (let [~..app-state.. (reacl-ext.context.state/->AppState ~'that ~..app-state.. active.clojure.lens/id)]
-                     ~..dom..)))})
+      ~'render (binding [impl/*context* (impl/initial-context ~'that ~..app-state.. ~'st)]
+                 ~..dom..)})
   
   
   )
