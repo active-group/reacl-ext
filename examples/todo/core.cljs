@@ -98,7 +98,7 @@
          (:todos app-state)))
 
    (dom/div
-    (ctx/local-state (text-input))
+    (ctx/locally this (text-input))
     (ctx/handle-action (button (str "Add #" (:next-id app-state)))
                        this ->Submit)))
 

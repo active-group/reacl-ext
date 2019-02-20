@@ -31,13 +31,19 @@
         (assoc context :state (state-f context)))
       thunk)))
 
-;; TODO: if app-state is the default, then could only be used to 'override' a previous local-state context; questionable if that is wise.
-#?(:cljs
-   (defn app-state*
+#_(:cljs
+   (defn bind-app-state*
      ([thunk]
       (app-state* lens/id thunk))
      ([lens thunk]
       (bind-state* (fn [context]
+                     ;; must use this - with reacl internals one might
+                     ;; to be able to get the current app-state of a
+                     ;; different then the 'current' component, but
+                     ;; then that is doubtfully sane.
+                     ;; Here, it serves some 'code quality' purpose
+                     ;; that we require the component to be passed.
+                     (assert (= component (:component context)))
                      (let [v (:app-state context)]
                        (when (= state/not-available v)
                          ;; TODO: positive formulation; hint to do it right...
@@ -45,17 +51,24 @@
                        (state/->AppState (:component context) v active.clojure.lens/id)))
                    thunk))))
 
-#?(:clj
-   (defmacro app-state
-     ([form] `(app-state* (fn [] ~form)))
-     ([lens form] `(app-state* ~lens (fn [] ~form)))))
+#_(:clj
+   (defmacro bind-app-state
+     ([component form] `(bind-app-state* ~component (fn [] ~form)))
+     ([component lens form] `(bind-app-state* ~component ~lens (fn [] ~form)))))
 
 #?(:cljs
-   (defn local-state*
-     ([thunk]
-      (local-state* lens/id thunk))
-     ([lens thunk]
+   (defn locally*
+     ([component thunk]
+      (locally* component lens/id thunk))
+     ([component lens thunk]
       (bind-state* (fn [context]
+                     ;; must use this - with reacl internals one might
+                     ;; to be able to get the current local-state of a
+                     ;; different then the 'current' component, but
+                     ;; then that is doubtfully sane.
+                     ;; Here, it serves some 'code quality' purpose
+                     ;; that we require the component to be passed.
+                     (assert (= component (:component context)))
                      (let [v (:local-state context)]
                        (when (= state/not-available v)
                          ;; TODO: positive formulation; hint to do it right...
@@ -64,9 +77,9 @@
                    thunk))))
 
 #?(:clj
-   (defmacro local-state
-     ([form] `(local-state* (fn [] ~form)))
-     ([lens form] `(local-state* ~lens (fn [] ~form)))))
+   (defmacro locally
+     ([component form] `(locally* ~component (fn [] ~form)))
+     ([component lens form] `(locally* ~component ~lens (fn [] ~form)))))
 
 ;; TODO: mixed-state
 
