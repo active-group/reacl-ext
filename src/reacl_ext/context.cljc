@@ -1,8 +1,9 @@
 (ns reacl-ext.context
-  (:require [reacl2.core :as reacl]
-            #?(:cljs [reacl-ext.context.impl :as impl])
-            #?(:cljs [reacl-ext.context.state :as state])
-            #?(:cljs goog.async.nextTick)))
+  #?(:cljs (:require [reacl2.core :as reacl]
+                     [reacl-ext.context.impl :as impl]
+                     [reacl-ext.context.state :as state]
+                     [active.clojure.lens :as lens]
+                     goog.async.nextTick)))
 
 #?(:cljs
    (defn- init-context-field [field value thunk]
@@ -27,9 +28,10 @@
    (defn bind-state* [state-f thunk]
      (impl/update-context
       (fn [context]
-        (assoc :state context (state-f context)))
+        (assoc context :state (state-f context)))
       thunk)))
 
+;; TODO: if app-state is the default, then could only be used to 'override' a previous local-state context; questionable if that is wise.
 #?(:cljs
    (defn app-state*
      ([thunk]
@@ -38,7 +40,8 @@
       (bind-state* (fn [context]
                      (let [v (:app-state context)]
                        (when (= state/not-available v)
-                         (throw (ex-info "Cannot embed into app-state, class does not have one.")))
+                         ;; TODO: positive formulation; hint to do it right...
+                         (throw (ex-info "Cannot embed into app-state, class does not have one." {})))
                        (state/->AppState (:component context) v active.clojure.lens/id)))
                    thunk))))
 
@@ -55,8 +58,10 @@
       (bind-state* (fn [context]
                      (let [v (:local-state context)]
                        (when (= state/not-available v)
-                         (throw (ex-info "Cannot embed into local-state, class does not have one.")))
-                       (state/->LocalState (:component context) v active.clojure.lens/id)))))))
+                         ;; TODO: positive formulation; hint to do it right...
+                         (throw (ex-info "Cannot embed into local-state, class does not have one." {})))
+                       (state/->LocalState (:component context) v active.clojure.lens/id)))
+                   thunk))))
 
 #?(:clj
    (defmacro local-state
@@ -94,7 +99,7 @@
 #?(:cljs
    (defn map-action* [thunk f & args]
      (reduce-action* (fn [app-state action] ;; TODO: non-generative fn!
-                       (if-let [a (apply f action)]
+                       (if-let [a (apply f action args)]
                          (reacl/return :action a)
                          (reacl/return)))
                      thunk)))
@@ -106,10 +111,10 @@
 
 #?(:cljs
    (defn handle-action* [thunk f & args]
-     (let [this (impl/get-context)]
+     (let [this (impl/get-component)]
        (reduce-action* (fn [app-state action] ;; TODO: non-generative fn!
                          (if-let [msg (apply f action args)]
-                           ;; TODO: use reacl/return :message when available.
+                           ;; FIXME: this is hack; use reacl/return :message when available.
                            (do (goog.async.nextTick (fn []
                                                       (reacl/send-message! this msg)))
                                (reacl/return))

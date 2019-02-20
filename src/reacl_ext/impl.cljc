@@ -1,19 +1,20 @@
 (ns reacl-ext.impl
   (:require [reacl-ext.extensions.core :as ext]
             [reacl-ext.context.impl :as ctx-impl]
-            reacl-ext.extensions.consts
-            reacl-ext.extensions.methods))
+            #?(:clj reacl-ext.extensions.consts)
+            #?(:clj reacl-ext.extensions.methods)))
 
 (defn generate-base-class
   "Adds:
   - namespaced class names (https://github.com/active-group/reacl/issues/16)
   "
-  [name this app-state? params & specs]
+  [name this app-state? params specs-map]
+  (assert (map? specs-map) (str "specs must be a map: " (pr-str specs-map)))
   `(reacl/class ~(str *ns* "/" (clojure.core/name name))
                 ~this
-                ~app-state?
+                ~@(if app-state? (list app-state?) nil)
                 ~params
-                ~@specs))
+                ~@(mapcat identity specs-map)))
 
 (defn analyze-class-args [app-state? docstring? params? specs?]
   (let [[app-state docstring? params? specs?]
@@ -38,16 +39,16 @@
   "
   [name this app-state? docstring? params & specs]
   (let [[app-state? docstring? params specs-map] (analyze-class-args app-state? docstring? params specs)]
-    (let [specs (-> specs-map
-                    (ext/apply-class-extensions name this app-state? params)
-                    (ctx-impl/apply-context this app-state?))
-          class (apply generate-base-class name this app-state? params specs)]
-      [docstring? params class])))
+    (assert (map? specs-map) "specs must be a map")
+    (let [specs-map (-> specs-map
+                        (ctx-impl/apply-context name this app-state?)
+                        (ext/apply-class-extensions name this app-state? params))
+          class (generate-base-class name this app-state? params specs-map)]
+      [docstring? (some? app-state?) params class])))
 
 (defn translate-defclass [name this app-state? docstring? params & specs]
-  (let [[docstring? params class] (apply generate-ext-class name this app-state? docstring? params specs)
-        has-app-state? (some? app-state?)
-        clazz `class#]
+  (let [[docstring? has-app-state? params class] (apply generate-ext-class name this app-state? docstring? params specs)
+        clazz (gensym "class")]
     `(let [~clazz ~class]
        ~(ctx-impl/instantiator-defn name docstring? has-app-state? params clazz))))
 

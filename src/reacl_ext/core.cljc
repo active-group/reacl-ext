@@ -32,4 +32,3 @@
      (apply reacl/render-component element
             (reacl-class clazz)
             rst)))
-

@@ -6,8 +6,8 @@
 (facts "about the consts extension"
   (fact "works with existing localstate"
     (core/class-extension 'consts
-                          `[x ~..vx..
-                            y ~..vy..]
+                          `[~'x ~..vx..
+                            ~'y ~..vy..]
                           {'local-state `[baz ~..st..]
                            'render ..dom..}
                           ..myclass..
@@ -20,10 +20,10 @@
                        (reacl-ext.extensions.core/set-extension-data!
                         ~'this
                         :reacl-ext.extensions.consts/consts
-                        {(quote x) ~..vx.. (quote y) ~..vy..})
+                        {(quote ~'x) ~..vx.. (quote ~'y) ~..vy..})
                        ~..st..)]
       ~'render (clojure.core/let
-                   [{x (quote x) y (quote y)}
+                   [{~'x (quote ~'x) ~'y (quote ~'y)}
                     (reacl-ext.extensions.core/get-extension-data
                      ~'this
                      :reacl-ext.extensions.consts/consts)]
@@ -31,8 +31,8 @@
   
   (fact "works with anonymous localstate"
     (-> (core/class-extension 'consts
-                              `[x ~..vx..
-                                y ~..vy..]
+                              `[~'x ~..vx..
+                                ~'y ~..vy..]
                               {'render ..dom..}
                               ..myclass..
                               'this
@@ -45,5 +45,5 @@
        (reacl-ext.extensions.core/set-extension-data!
         ~'this
         :reacl-ext.extensions.consts/consts
-        {(quote x) ~..vx.. (quote y) ~..vy..})
+        {(quote ~'x) ~..vx.. (quote ~'y) ~..vy..})
        nil)))

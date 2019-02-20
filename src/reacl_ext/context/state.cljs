@@ -1,5 +1,6 @@
 (ns reacl-ext.context.state
-  (:require [active.clojure.lens :as lens]))
+  (:require [active.clojure.lens :as lens]
+            [reacl2.core :as reacl]))
 
 (defprotocol IState
   (-focus [this lens] "Focus this state, by appending a lens.")
@@ -13,16 +14,15 @@
 
 (def not-available #js {})
 
-(defn wrap-handle-state-messages [handler app-state local-state]
+(defn handle-state-messages [msg handler app-state local-state]
   ;; states may be not-available (to distinguish from nil values)
-  (let [otherwise (or handler
-                      (fn [msg]
-                        ;; TODO throw
-                        (assert false)))]
-    (fn [msg]
-      (if (instance? SetStateMessage msg)
-        (-handle-update (:state msg) app-state local-state (:new-app-state msg))
-        (otherwise msg)))))
+  (if (instance? SetStateMessage msg)
+      (-handle-update (:state msg) app-state local-state (:new-app-state msg))
+      (handler msg)))
+
+(defn fallback-handle-message [msg]
+  ;; TODO throw? ignore?
+  (assert false))
 
 (defrecord AppState [owner value lens]
   IState
@@ -34,7 +34,7 @@
     (assert (not= app-state not-available) "app-state change sent to class without an app-state")
     (reacl/return :app-state (lens/shove app-state lens value)))
   IDeref
-  (deref [_] (lens/yank value lens)))
+  (-deref [_] (lens/yank value lens)))
 
 (defrecord LocalState [owner value lens]
   IState
@@ -46,7 +46,7 @@
     (assert (not= local-state not-available) "app-state change sent to class without a local-state")
     (reacl/return :local-state (lens/shove local-state lens value)))
   IDeref
-  (deref [_] (lens/yank value lens)))
+  (-deref [_] (lens/yank value lens)))
 
 (defrecord MixedState [owner app-state local-state lens]
   IState
@@ -61,7 +61,7 @@
       (reacl/return :local-state lst
                     :app-state ast)))
   IDeref
-  (deref [_] (lens/yank [app-state local-state] lens)))
+  (-deref [_] (lens/yank [app-state local-state] lens)))
 
 (defrecord FixedState [value lens]
   IState
