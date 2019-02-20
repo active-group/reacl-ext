@@ -1,6 +1,9 @@
 (ns reacl-ext.core
-  (:require [reacl-ext.impl :as impl]
-            [reacl2.core :as reacl]))
+  (:require #?(:clj [reacl-ext.impl :as impl])
+            #?(:cljs [reacl-ext.context.runtime :as ctx-rt])
+            #?(:cljs [reacl2.core :as reacl])
+            #?(:clj reacl-ext.extensions.consts)
+            #?(:clj reacl-ext.extensions.methods)))
 
 #?(:clj
    (defmacro defclass [name this app-state? docstring? params & specs]
@@ -9,7 +12,7 @@
 
 #?(:cljs
    (defn reacl-class [ext-class]
-     (impl/reacl-class ext-class)))
+     (ctx-rt/reacl-class ext-class)))
 
 ;; #?(:clj
 ;;    (defmacro defc [name params & body]

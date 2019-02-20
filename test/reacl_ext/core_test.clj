@@ -8,7 +8,7 @@
                   
                     local-state [ls nil]
                   
-                    methods [(click [_] (reacl/send-message! this :clicked))]
+                    methods [(click [_] (reacl2.core/send-message! this :clicked))]
   
                     render
                     (dom/button {:onclick click}
@@ -16,11 +16,11 @@
   
                     handle-message
                     (fn [_]
-                      (reacl/return :action true))))
+                      (reacl2.core/return :action true))))
   =>
   `(let
        [..class..
-        (reacl/class
+        (reacl2.core/class
          "reacl-ext.core-test/button"
          ~'this
          [~'label]
@@ -30,7 +30,7 @@
             (reacl-ext.extensions.core/set-extension-data!
              ~'this
              :reacl-ext.extensions.methods/methods
-             {(quote ~'click) (fn [~'_] (reacl/send-message! ~'this :clicked))})
+             {(quote ~'click) (fn [~'_] (reacl2.core/send-message! ~'this :clicked))})
             nil)]
          ~'render
          (let [{~'click (quote ~'click)}
@@ -43,7 +43,7 @@
             ~'ls
             (fn [] (dom/button {:onclick ~'click} ~'label))))
          ~'handle-message
-         (let [..other.. (~'fn [~'_] (reacl/return :action true))]
+         (let [..other.. (~'fn [~'_] (reacl2.core/return :action true))]
            (fn
              [..msg..]
              (reacl-ext.context.state/handle-state-messages
