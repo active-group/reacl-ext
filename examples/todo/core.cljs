@@ -8,7 +8,7 @@
 (enable-console-print!)
 
 (ext/defclass checkbox
-  ;; "Control for a boolean value in the form of a checkbox"
+  "Control for a boolean value in the form of a checkbox"
   this checked []
 
   methods [(change [e] (reacl/send-message! this
@@ -22,7 +22,10 @@
   (fn [checked]
     (reacl/return :app-state checked)))
 
-(ext/defclass text-input this text []
+(ext/defclass text-input
+  "Control for a string value in the form of a simple input type :text."
+  this text []
+  
   methods [(change [e]
                    (reacl/send-message! this
                                         (.. e -target -value)))]
@@ -34,9 +37,8 @@
   (fn [txt]
     (reacl/return :app-state txt)))
 
-;;   "Control that shows a button and emits an action (true) when that is clicked."
-
 (ext/defclass button
+  "Control that shows a button and emits an action (true) when that is clicked."
   this [label]
   
   methods [(click [_]

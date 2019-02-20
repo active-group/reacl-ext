@@ -20,40 +20,46 @@
                    ~@(mapcat identity specs-map))))
 
 #?(:clj
-   (defn analyze-class-args [app-state? docstring? params? specs?]
-     (let [[app-state docstring? params? specs?]
-           (if (symbol? app-state?)
-             [app-state? docstring? params? specs?]
-             [nil app-state? docstring? (cons params? specs?)])
-           [docstring params specs]
+   (defn analyze-class-args [docstring? this? app-state? params? specs?]
+     ;; TODO: use clojure.spec?
+     (let [[docstring this app-state? params? specs?]
            (if (string? docstring?)
-             [docstring? params? specs?]
-             [nil docstring? (cons params? specs?)])]
-       (when-not (vector? params) ;; use clojure.spec?
-         #_(throw (ex-info ""))
-         )
-       (when-not (even? (count specs))
-         )
+             [docstring? this? app-state? params? specs?]
+             [nil docstring? this? app-state? (cons params? specs?)])
+           
+           [app-state params specs]
+           (if (symbol? app-state?)
+             [app-state? params? specs?]
+             [nil app-state? (cons params? specs?)])
+           ]
+       ;; TODO: throw.
+       (assert (or (nil? docstring) (string? docstring)) docstring)
+       (assert (symbol? this))
+       (assert (or (nil? app-state) (symbol app-state)) app-state)
+       (assert (vector? params) params)
+
        ;; Note: keeps the order of specs via array-map:
-       [app-state docstring params (apply array-map specs)])))
+       [this docstring app-state params specs])))
 
 #?(:clj
    (defn generate-ext-class
      "Adds:
   - optional docstring just before the binding form for the arguments.
   "
-     [name this app-state? docstring? params & specs]
-     (let [[app-state? docstring? params specs-map] (analyze-class-args app-state? docstring? params specs)]
-       (assert (map? specs-map) "specs must be a map")
-       (let [specs-map (-> specs-map
-                           (ctx-tr/apply-context name this app-state?)
-                           (ext/apply-class-extensions name this app-state? params))
-             class (generate-base-class name this app-state? params specs-map)]
-         [docstring? (some? app-state?) params class]))))
+     [name docstring? this? app-state? params & specs]
+     (let [[this docstring? app-state? params specs] (analyze-class-args docstring? this? app-state? params specs)]
+       (assert (even? (count specs)) specs)
+       (let [specs-map (apply array-map specs)] ;; keep order (because of shadowing)
+         (assert (every? symbol? (keys specs-map)) (remove symbol? (keys specs-map)))
+         (let [specs-map (-> specs-map
+                             (ctx-tr/apply-context name this app-state?)
+                             (ext/apply-class-extensions name this app-state? params))
+               class (generate-base-class name this app-state? params specs-map)]
+           [docstring? (some? app-state?) params class])))))
 
 #?(:clj
-   (defn translate-defclass [name this app-state? docstring? params & specs]
-     (let [[docstring? has-app-state? params class] (apply generate-ext-class name this app-state? docstring? params specs)
+   (defn translate-defclass [name docstring? this? app-state? params & specs]
+     (let [[docstring? has-app-state? params class] (apply generate-ext-class name docstring? this? app-state? params specs)
            clazz (gensym "class")]
        `(let [~clazz ~class]
           ~(ctx-tr/instantiator-defn name docstring? has-app-state? params clazz)))))
