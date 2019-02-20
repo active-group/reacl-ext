@@ -56,18 +56,13 @@
 
 (defrecord Todo [id text done?])
 
-(defrecord Delete [todo])
-
-(defrecord Submit [_])
-
+(defrecord Delete [_])
 
 (ext/defclass to-do-item this todo []
   render
   (dom/div (ctx/focus :done? (checkbox))
            (ctx/map-action (button "Zap")
-                           ;; TODO: non-generative fn
-                           (constantly (->Delete todo)))
-           
+                           ->Delete)
            (:text todo)))
 
 (letfn [(todo-id-yank [list id]
@@ -85,6 +80,12 @@
                todo-id-shove
                id)))
 
+(defn always [_ v] v)
+
+(defrecord DeleteItem [todo])
+
+(defrecord Submit [_])
+
 (ext/defclass to-do-app this app-state []
   local-state [next-text ""]
 
@@ -96,7 +97,7 @@
            (ctx/handle-action (ctx/focus (lens/>> :todos (todo-id (:id todo)))
                                          (dom/keyed (str (:id todo))
                                                     (to-do-item)))
-                              this identity))
+                              this always (->DeleteItem todo)))
          (:todos app-state)))
 
    (dom/div
@@ -118,7 +119,7 @@
                         [(->Todo next-id next-text false)])
                 :next-id (+ 1 next-id))))
 
-      (instance? Delete msg)
+      (instance? DeleteItem msg)
       (let [id (:id (:todo msg))]
         (reacl/return :app-state
                       (assoc app-state
