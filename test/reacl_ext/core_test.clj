@@ -19,7 +19,7 @@
                       (reacl/return :action true))))
   =>
   `(let
-       [~..class..
+       [..class..
         (reacl/class
          "reacl-ext.core-test/button"
          ~'this
@@ -37,18 +37,18 @@
                (reacl-ext.extensions.core/get-extension-data
                 ~'this
                 :reacl-ext.extensions.methods/methods)]
-           (reacl-ext.context.impl/wrap-initial-context*
+           (reacl-ext.context.runtime/with-initial-context*
             ~'this
             reacl-ext.context.state/not-available
             ~'ls
             (fn [] (dom/button {:onclick ~'click} ~'label))))
          ~'handle-message
-         (let [~..other.. (~'fn [~'_] (reacl/return :action true))]
+         (let [..other.. (~'fn [~'_] (reacl/return :action true))]
            (fn
-             [~..msg..]
+             [..msg..]
              (reacl-ext.context.state/handle-state-messages
-              ~..msg..
-              ~..other..
+              ..msg..
+              ..other..
               reacl-ext.context.state/not-available
               ~'ls)))
          )]
@@ -57,11 +57,10 @@
        (->
         (fn
           [~'label]
-          (reacl-ext.context.impl/instantiate-without-state
-           ~..class..
+          (reacl-ext.context.runtime/instantiate-without-state
+           ..class..
            [~'label]))
-        (with-meta
-          {:reacl-ext.context.impl/reacl-class ~..class..}))))
+        (reacl-ext.context.runtime/set-reacl-class ..class..))))
   
   (provided (gensym "class") => ..class..
             (gensym "msg") => ..msg..

@@ -1,13 +1,13 @@
 (ns reacl-ext.context
   #?(:cljs (:require [reacl2.core :as reacl]
-                     [reacl-ext.context.impl :as impl]
+                     [reacl-ext.context.runtime :as rt]
                      [reacl-ext.context.state :as state]
                      [active.clojure.lens :as lens]
                      goog.async.nextTick)))
 
 #?(:cljs
    (defn- init-context-field [field value thunk]
-     (impl/update-context
+     (rt/update-context
       (fn [context]
         (assert (or (= field :state) (= field :reaction)))
         (assert (not (:state context)))
@@ -17,7 +17,7 @@
 
 #?(:cljs
    (defn- update-context-field [field f thunk]
-     (impl/update-context
+     (rt/update-context
       (fn [context]
         (assert (or (not= field :state) (:state context)))
         (assert (not= field :reaction))
@@ -26,7 +26,7 @@
 
 #?(:cljs
    (defn bind-state* [state-f thunk]
-     (impl/update-context
+     (rt/update-context
       (fn [context]
         (assoc context :state (state-f context)))
       thunk)))
