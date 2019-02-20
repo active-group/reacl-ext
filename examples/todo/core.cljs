@@ -94,13 +94,13 @@
            (ctx/handle-action (ctx/focus (lens/>> :todos (todo-id (:id todo)))
                                          (dom/keyed (str (:id todo))
                                                     (to-do-item)))
-                              identity))
+                              this identity))
          (:todos app-state)))
 
    (dom/div
     (ctx/local-state (text-input))
     (ctx/handle-action (button (str "Add #" (:next-id app-state)))
-                       ->Submit)))
+                       this ->Submit)))
 
   handle-message
   (fn [msg]

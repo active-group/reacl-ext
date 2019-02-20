@@ -20,11 +20,6 @@
       :reduce-action nil}))
 
 #?(:cljs
-   (defn get-component []
-     (assert *context*)
-     (:component *context*)))
-
-#?(:cljs
    (defn update-context [f thunk]
      (assert *context*)
      (binding [*context* (let [context (f *context*)]

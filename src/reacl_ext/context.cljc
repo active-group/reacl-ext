@@ -80,29 +80,37 @@
      `(focus* ~lens (fn [] ~form))))
 
 #?(:cljs
-   (defn- compose-reduce-action [outer inner]
-     (assert (ifn? inner))
+   (defn- compose-reduce-action [outer inner-f inner-args]
+     (assert (some? inner-f))
      (if (nil? outer)
-       inner
+       (fn [app-state action]  ;; TODO: non-generative fn!
+         (apply inner-f app-state action inner-args))
+       
+       ;; https://github.com/active-group/reacl/issues/9
+       ;; (:args ret)
        ;; TODO: unless the outer returns app-state it is possible:
        (throw (ex-info "Reducing actions cannot be composed yet." {})))))
 
 #?(:cljs
-   (defn reduce-action* [f thunk]
-     (update-context-field :reduce-action #(compose-reduce-action % f)  ;; TODO: non-generative fn!
+   (defn reduce-action* [thunk f & args]
+     (update-context-field :reduce-action #(compose-reduce-action % f args)
                            thunk)))
 
 #?(:clj
-   (defmacro reduce-action [f form]
-     `(reduce-action* ~f (fn [] ~form))))
+   (defmacro reduce-action
+     "Use with care. Prefer to use [[map-action]] or [[handle-action]]."
+     [form f & args]
+     `(reduce-action* (fn [] ~form) ~f ~@args)))
 
 #?(:cljs
-   (defn map-action* [thunk f & args]
-     (reduce-action* (fn [app-state action] ;; TODO: non-generative fn!
-                       (if-let [a (apply f action args)]
-                         (reacl/return :action a)
-                         (reacl/return)))
-                     thunk)))
+   (letfn [(action-mapper [app-state action f args]
+             (let [a (apply f action args)]
+               (if (some? a)
+                 (reacl/return :action a)
+                 (reacl/return))))]
+     (defn map-action* [thunk f & args]
+       (reduce-action* thunk
+                       action-mapper f args))))
 
 #?(:clj
    (defmacro map-action [form f & args]
@@ -110,21 +118,22 @@
                    ~f ~@args)))
 
 #?(:cljs
-   (defn handle-action* [thunk f & args]
-     (let [this (impl/get-component)]
-       (reduce-action* (fn [app-state action] ;; TODO: non-generative fn!
-                         (if-let [msg (apply f action args)]
-                           ;; FIXME: this is hack; use reacl/return :message when available.
-                           (do (goog.async.nextTick (fn []
-                                                      (reacl/send-message! this msg)))
-                               (reacl/return))
-                           (reacl/return :action action)))
-                       thunk))))
+   (letfn [(action-handler [app-state action component f args]
+             (let [msg (apply f action args)]
+               ;; FIXME: this is hack; use reacl/return :message when available.
+               (if (some? msg)
+                 (do (goog.async.nextTick (fn []
+                                            (reacl/send-message! component msg)))
+                     (reacl/return))
+                 (reacl/return :action action))))]
+     (defn handle-action* [thunk component f & args]
+       (reduce-action* thunk
+                       action-handler component f args))))
 
 #?(:clj
-   (defmacro handle-action [form f & args] ;; TODO: maybe take 'this' as an arg? (then also don't need it in the context)
+   (defmacro handle-action [form component f & args]
      `(handle-action* (fn [] ~form)
-                      ~f ~args)))
+                      ~component ~f ~@args)))
 
 #?(:cljs
    (defn reaction* [reaction app-state thunk]
@@ -132,13 +141,15 @@
                          thunk)))
 
 #?(:clj
-   (defmacro reaction [reaction app-state form]
+   (defmacro reaction
+     "Use with care. Prefer to use [[app-state]] or [[local-state]] and maybe [[focus]]."
+     [reaction app-state form]
      `(reaction* ~reaction ~app-state
                  (fn [] ~form))))
 
 #_(:clj
    ;; TODO?
-   (defmacro pass-through [state & body]
+   #_(defmacro pass-through [state & body]
      ...))
 
 #?(:cljs
