@@ -51,15 +51,13 @@
     (thunk)))
 
 (defn ^:no-doc instantiate-with-state [class args]
-  (let [[opt state] (get-instantiation-args-with-state)]
-    (apply class opt state args)))
+  (if-not *context*
+    (apply class args) ;; 'compatibility mode'
+    (let [[opt state] (get-instantiation-args-with-state)]
+      (apply class opt state args))))
 
 (defn ^:no-doc instantiate-without-state [class args]
-  (let [opt (get-instantiation-args-without-state)]
-    (apply class opt args)))
-
-(defn set-reacl-class [obj class]
-  (vary-meta obj assoc ::reacl-class class))
-
-(defn reacl-class [instantiator-fn]
-  (::reacl-class (meta instantiator-fn)))
+  (if-not *context*
+    (apply class args) ;; 'compatibility mode'
+    (let [opt? (get-instantiation-args-without-state)]
+      (apply class (if opt? (cons opt? args))))))

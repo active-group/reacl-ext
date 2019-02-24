@@ -50,17 +50,33 @@
       [symbols `(apply list ~@(filter #(not= % '&) symbols))]
       [symbols `[~@symbols]])))
 
-(defn instantiator-fn [has-state? params class]
-  (assert (vector? params) params)
-  (let [[mparams args] (undestructuring params)]
-    `(-> (fn ~mparams
-           ~(if has-state?
-              `(reacl-ext.context.runtime/instantiate-with-state ~class ~args)
-              `(reacl-ext.context.runtime/instantiate-without-state ~class ~args)))
-         (reacl-ext.context.runtime/set-reacl-class ~class))))
+(defn reify-reacl-class [class]
+  ;; delegates all methods to the internal reacl class
+  `[reacl/IReaclClass
+    (~'-instantiate-toplevel-internal [~'_ rst#]
+                                      (reacl/-instantiate-toplevel-internal ~class rst#))
+    (~'-compute-locals [~'_ app-state# args#]
+                       (reacl/-compute-locals ~class app-state# args#))
+    (~'-make-refs [~'_]
+                  (reacl/-make-refs ~class))
+    (~'-react-class [~'_]
+                    (reacl/-react-class ~class))])
 
-(defn instantiator-defn [name docstring? has-state? params class]
-  `(def ~(cond-> (vary-meta name assoc
-                            :arglists '(list params))
-           docstring? (vary-meta assoc :doc docstring?))
-     ~(instantiator-fn has-state? params class)))
+(defn create-ctx-class [name has-state? params class]
+  (assert (vector? params) (str "not a vector: " (pr-str params)))
+  (let [[mparams args] (undestructuring params)
+        opt (gensym "opt")
+        app-state (when has-state? (gensym "app-state"))]
+    `(reify
+       ~@(reify-reacl-class class)
+       ~'IFn
+       ;; FIXME: with var args, we have to implement IFn differently. 
+       ~@(if has-state?
+           ;; Note opt and app-state args don't actually have to be that, if class has varargs
+           [`(~'-invoke [~'_ ~@mparams] (reacl-ext.context.runtime/instantiate-with-state ~class ~args))
+            `(~'-invoke [~'_ ~app-state ~@mparams] (reacl-ext.context.runtime/instantiate-with-state ~class (cons ~app-state ~args)))
+            `(~'-invoke [~'_ ~opt ~app-state ~@mparams] (reacl-ext.context.runtime/instantiate-with-state ~class (cons ~opt (cons ~app-state ~args))))]
+           [`(~'-invoke [~'_ ~@mparams] (reacl-ext.context.runtime/instantiate-without-state ~class ~args))
+            `(~'-invoke [~'_ ~opt ~@mparams] (reacl-ext.context.runtime/instantiate-without-state ~class (cons ~opt ~args)))]))))
+
+

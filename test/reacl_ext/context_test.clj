@@ -3,26 +3,30 @@
             [reacl-ext.context :as ctx]
             [reacl-ext.context.translation :as t]))
 
-(facts "about instantiator-defn"
+(facts "about create-ctx-class"
   (fact "works with simple params"
-    (t/instantiator-defn 'myclass "docs" true '[a b]
-                         ..class..)
+    (t/create-ctx-class 'myclass true '[a b]
+                        ..class..)
     =>
-    `(def ~'myclass
-       (-> (fn [~'a ~'b]
-             (reacl-ext.context.runtime/instantiate-with-state ..class.. [~'a ~'b]))
-           (reacl-ext.context.runtime/set-reacl-class ..class..))))
+    `(reify
+       ~@(t/reify-reacl-class ..class..)
+       ~'IFn
+       (~'-invoke [~'_ ~'a ~'b] (reacl-ext.context.runtime/instantiate-with-state ..class.. [~'a ~'b]))
+       (~'-invoke [~'_ ~'app-state ~'a ~'b] (reacl-ext.context.runtime/instantiate-with-state ..class.. (cons ~'app-state [~'a ~'b])))
+       (~'-invoke [~'_ ~'opt ~'app-state ~'a ~'b] (reacl-ext.context.runtime/instantiate-with-state ..class.. (cons ~'opt (cons ~'app-state [~'a ~'b])))))
+    (provided (gensym "opt") => 'opt
+              (gensym "app-state") => 'app-state))
 
   (fact "works with var-args"
-    (t/instantiator-defn 'myclass nil false '[a b & c]
-                         ..class..)
+    (t/create-ctx-class 'myclass false '[a b & c]
+                        ..class..)
     =>
-    `(def
-       ~'myclass
-       (-> (fn [~'a ~'b & ~'c]
-             (reacl-ext.context.runtime/instantiate-without-state ..class.. (apply list ~'a ~'b ~'c)))
-           (reacl-ext.context.runtime/set-reacl-class ..class..))))
-  )
+    `(reify
+       ~@(t/reify-reacl-class ..class..)
+       ~'IFn
+       (~'-invoke [~'_ ~'a ~'b & ~'c] (reacl-ext.context.runtime/instantiate-without-state ..class.. (apply list ~'a ~'b ~'c)))
+       (~'-invoke [~'_ ~'opt ~'a ~'b & ~'c] (reacl-ext.context.runtime/instantiate-without-state ..class.. (cons ~'opt (apply list ~'a ~'b ~'c)))))
+    (provided (gensym "opt") => 'opt)))
 
 (facts "about apply-context"
   (fact "works without states"

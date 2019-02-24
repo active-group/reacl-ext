@@ -127,15 +127,9 @@
                              (remove (fn [todo] (= id (:id todo)))
                                      (:todos app-state)))))
       :else
-      (assert false msg)))
-  )
+      (assert false msg))))
 
 (reacl/render-component
  (.getElementById js/document "content")
- (ext/reacl-class to-do-app)
- (TodosApp. 0 []))
-
-#_(ext/render-component
-   (.getElementById js/document "content")
  to-do-app
  (TodosApp. 0 []))

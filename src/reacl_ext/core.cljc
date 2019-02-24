@@ -1,18 +1,18 @@
 (ns reacl-ext.core
   (:require #?(:clj [reacl-ext.impl :as impl])
             #?(:cljs [reacl-ext.context.runtime :as ctx-rt])
-            #?(:cljs [reacl2.core :as reacl])
+            #?(:cljs [reacl2.core :as reacl :include-macros true])
+            #?(:cljs reacl-ext.extensions.core)
             #?(:clj reacl-ext.extensions.consts)
             #?(:clj reacl-ext.extensions.methods)))
 
 #?(:clj
-   (defmacro defclass [name this app-state? docstring? params & specs]
-     ;; TODO: move docstring before this.
-     (apply impl/translate-defclass name this app-state? docstring? params specs)))
+   (defmacro defclass [name docstring? this app-state? params & specs]
+     (apply impl/translate-defclass name docstring? this app-state? params specs)))
 
-#?(:cljs
-   (defn reacl-class [ext-class]
-     (ctx-rt/reacl-class ext-class)))
+#?(:clj
+   (defmacro class [name this app-state? params & specs]
+     (apply impl/translate-class name this app-state? params specs)))
 
 ;; #?(:clj
 ;;    (defmacro defc [name params & body]
@@ -29,9 +29,3 @@
                                        (if (nil? (:action m))
                                          (dissoc m :action)
                                          m))))))
-
-#?(:cljs
-   (defn render-component [element clazz & rst]
-     (apply reacl/render-component element
-            (reacl-class clazz)
-            rst)))
