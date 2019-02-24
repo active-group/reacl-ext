@@ -4,7 +4,8 @@
             #?(:cljs [reacl2.core :as reacl :include-macros true])
             #?(:cljs reacl-ext.extensions.core)
             #?(:clj reacl-ext.extensions.consts)
-            #?(:clj reacl-ext.extensions.methods)))
+            #?(:clj reacl-ext.extensions.methods))
+  (:refer-clojure :exclude [class]))
 
 #?(:clj
    (defmacro defclass
