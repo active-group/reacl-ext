@@ -55,15 +55,3 @@
                                      [k v]))
                                  items))))
 
-#?(:cljs
-   (defn update-return
-     "Returns a `reacl/return` value, where for each `field` (`:app-state`, `:action` etc), the value is piped through `f`."
-     [ret field f & args]
-     (assert (instance? reacl/Effects ret))
-     ;; Note: ext/return also removes nil actions
-     (apply return (map-flat-tuple-list (fn [[k v]]
-                                          (if (= k field)
-                                            [k (apply f v args)]
-                                            [k v]))
-                                        ;; TODO: need an exported access; not use internals.
-                                        (:args ret)))))

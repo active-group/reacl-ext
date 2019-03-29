@@ -8,7 +8,7 @@
   :dependencies [[org.clojure/clojure "1.10.0"] ;; TODO: minimal version?
                  [org.clojure/clojurescript "1.10.520"]
                  [active-clojure "0.26.0"]
-                 [reacl "2.1.0-SNAPSHOT"]]
+                 [reacl "2.1.0"]]
 
   :profiles {:dev {:dependencies [[midje "1.9.6"]]
                    :plugins [[lein-midje "3.2.1"]]}}
