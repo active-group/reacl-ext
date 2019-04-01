@@ -2,8 +2,7 @@
   #?(:cljs (:require [reacl2.core :as reacl]
                      [reacl-ext.context.runtime :as rt]
                      [reacl-ext.context.state :as state]
-                     [active.clojure.lens :as lens]
-                     goog.async.nextTick)))
+                     [active.clojure.lens :as lens])))
 
 #?(:cljs
    (defn- init-context-field [field value thunk]
@@ -133,11 +132,8 @@
 #?(:cljs
    (letfn [(action-handler [app-state action component f args]
              (let [msg (apply f action args)]
-               ;; FIXME: this is hack; use reacl/return :message when available.
                (if (some? msg)
-                 (do (goog.async.nextTick (fn []
-                                            (reacl/send-message! component msg)))
-                     (reacl/return))
+                 (reacl/return :message [component msg])
                  (reacl/return :action action))))]
      (defn handle-action* [thunk component f & args]
        (reduce-action* thunk
