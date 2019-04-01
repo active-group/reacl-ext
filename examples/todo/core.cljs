@@ -38,8 +38,8 @@
     (reacl/return :app-state txt)))
 
 (ext/defclass button
-  "Control that shows a button and emits an action (true) when that is clicked."
-  this [label]
+  "Control that shows a button and emits `action` (defaulting to `true`) when that is clicked."
+  this [label & [action]]
   
   methods [(click [_]
                   (reacl/send-message! this :clicked))]
@@ -50,19 +50,18 @@
   
   handle-message
   (fn [_]
-    (reacl/return :action true)))
+    (reacl/return :action (if (nil? action) true action))))
 
 (defrecord TodosApp [next-id todos])
 
 (defrecord Todo [id text done?])
 
-(defrecord Delete [_])
+(defrecord Delete [])
 
 (ext/defclass to-do-item this todo []
   render
   (dom/div (ctx/focus :done? (checkbox))
-           (ctx/map-action (button "Zap")
-                           ->Delete)
+           (button "Zap" (->Delete))
            (:text todo)))
 
 (letfn [(todo-id-yank [list id]
@@ -84,7 +83,7 @@
 
 (defrecord DeleteItem [todo])
 
-(defrecord Submit [_])
+(defrecord Submit [])
 
 (ext/defclass to-do-app this app-state []
   local-state [next-text ""]
@@ -102,8 +101,9 @@
 
    (dom/div
     (ctx/locally this (text-input))
-    (ctx/handle-action (button (str "Add #" (:next-id app-state)))
-                       this ->Submit)))
+    (ctx/handle-action (button (str "Add #" (:next-id app-state))
+                               (->Submit))
+                       this identity)))
 
   handle-message
   (fn [msg]

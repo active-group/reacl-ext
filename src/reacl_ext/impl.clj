@@ -22,7 +22,7 @@
          :this simple-symbol?
          :app-state? (s/? simple-symbol?)
          ;; TODO:? :params :clojure.core.specs.alpha/param-list   (already splits into :params & :var-params)
-         :params (s/coll-of simple-symbol?)
+         :params (s/coll-of any?)
          :specs (s/* any?)))
 
 #_(s/def ::defclass-args
@@ -32,7 +32,7 @@
          :this simple-symbol?
          :app-state? (s/? simple-symbol?)
          ;; TODO:? :params :clojure.core.specs.alpha/param-list   (already splits into :params & :var-params)
-         :params (s/coll-of simple-symbol?)
+         :params (s/coll-of any?)
          :specs (s/* any?)))
 
 (defn- analyze-args [spec & args]

@@ -56,7 +56,7 @@
          ~@(t/reify-reacl-class ..class..)
          ~'IFn
          (~'-invoke [~'_ ~'label] (reacl-ext.context.runtime/instantiate-without-state ..class.. [~'label]))
-         (~'-invoke [~'_ ~'opt ~'label] (reacl-ext.context.runtime/instantiate-without-state ..class.. (cons ~'opt [~'label]))))))
+         (~'-invoke [~'_ ~'opt ~'label] (reacl-ext.context.runtime/instantiate-without-state ..class.. [~'opt ~'label])))))
   
   (provided (gensym "class") => ..class..
             (gensym "msg") => ..msg..

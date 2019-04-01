@@ -34,21 +34,23 @@
       (update 'handle-message wrap-handle-state-messages app-state? (get-local-state specs-map))))
 
 (defn- undestructuring
-  "[a b] => [a b], (list a b)
-  [a b & c] => [a b & c], (apply list a b c)
-  [{:x x} b & [c]] => [a# b & c#], (apply list a# b c#)
+  "[a b] => [[a b] nil], (list a b)
+  [a b & c] => [[a b] [c]], (apply list a b c)
+  [{:x x} b & [c]] => [[arg1# b] arg2#], (apply list arg1# b arg2#)
   "
   ;; Note [... :as all] is apparently only possible in lets, not in fn args :-( (Bug in clojure?)
   [params]
-  (let [symbols (mapv (fn [x]
+  (let [symbols_ (mapv (fn [x]
                         (cond
                           (symbol? x) x
                           :else `arg#))
-                      params)
-        varg? (contains? (set symbols) '&)]
-    (if varg?
-      [symbols `(apply list ~@(filter #(not= % '&) symbols))]
-      [symbols `[~@symbols]])))
+                       params)
+        [symbols vargs_] (split-with #(not= '& %) symbols_)
+        vargs (rest vargs_)]
+    (assert (<= (count vargs) 1))
+    (if (empty? vargs)
+      [[symbols nil] `[~@symbols]]
+      [[symbols (first vargs)] `(apply list ~@(filter #(not= % '&) symbols_))])))
 
 (defn reify-reacl-class [class]
   ;; delegates all methods to the internal reacl class
@@ -62,21 +64,39 @@
     (~'-react-class [~'_]
                     (reacl/-react-class ~class))])
 
+(defn- ifn-clause [f fixed-args args]
+  `(~'-invoke [~'_ ~@args] (~f ~@fixed-args ~(vec args))))
+
+(defn- ifn-vargs-clauses [f fixed-args args]
+  ;;(assert (<= (count args) 21))
+  (loop [args (vec args)
+         res []]
+    (if (>= (count args) 20)
+      (-> res
+          (conj (ifn-clause f fixed-args args))
+          (conj (let [rest (gensym "rest")]
+                  `(~'-invoke [~'_ ~@args ~rest] (~f ~@fixed-args (concat ~args ~rest))))))
+      (recur (conj args (gensym (str "arg" (count args))))
+             (conj res (ifn-clause f fixed-args args))))))
+
 (defn create-ctx-class [name has-state? params class]
   (assert (vector? params) (str "not a vector: " (pr-str params)))
-  (let [[mparams args] (undestructuring params)
+  (let [[[mparams vparam] args] (undestructuring params)
         opt (gensym "opt")
         app-state (when has-state? (gensym "app-state"))]
     `(reify
        ~@(reify-reacl-class class)
        ~'IFn
-       ;; FIXME: with var args, we have to implement IFn differently. 
-       ~@(if has-state?
-           ;; Note opt and app-state args don't actually have to be that, if class has varargs
-           [`(~'-invoke [~'_ ~@mparams] (reacl-ext.context.runtime/instantiate-with-state ~class ~args))
-            `(~'-invoke [~'_ ~app-state ~@mparams] (reacl-ext.context.runtime/instantiate-with-state ~class (cons ~app-state ~args)))
-            `(~'-invoke [~'_ ~opt ~app-state ~@mparams] (reacl-ext.context.runtime/instantiate-with-state ~class (cons ~opt (cons ~app-state ~args))))]
-           [`(~'-invoke [~'_ ~@mparams] (reacl-ext.context.runtime/instantiate-without-state ~class ~args))
-            `(~'-invoke [~'_ ~opt ~@mparams] (reacl-ext.context.runtime/instantiate-without-state ~class (cons ~opt ~args)))]))))
+       ;; Note opt and app-state args don't actually have to be that, if class has varargs
+       ~@(if (nil? vparam)
+           (if has-state?
+             [(ifn-clause `reacl-ext.context.runtime/instantiate-with-state [class] mparams)
+              (ifn-clause `reacl-ext.context.runtime/instantiate-with-state [class] (cons app-state mparams))
+              (ifn-clause `reacl-ext.context.runtime/instantiate-with-state [class] (cons opt (cons app-state mparams)))]
+             [(ifn-clause `reacl-ext.context.runtime/instantiate-without-state [class] mparams)
+              (ifn-clause `reacl-ext.context.runtime/instantiate-without-state [class] (cons opt mparams))])
+           (if has-state?
+             (ifn-vargs-clauses `reacl-ext.context.runtime/instantiate-with-state [class] (cons app-state mparams)) ;; mparams+1 minimally.
+             (ifn-vargs-clauses `reacl-ext.context.runtime/instantiate-without-state [class] mparams))))))
 
 
